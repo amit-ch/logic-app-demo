@@ -1,0 +1,64 @@
+{
+    "$schema": "https://schema.management.azure.com/schemas/2015-01-01/deploymentTemplate.json#",
+    "contentVersion": "1.0.0.0",
+    "parameters": {
+        "name": {
+            "type": "string",
+            "metadata": {
+                "description": "The name of the integration account"
+            }
+        },
+        "location": {
+            "type": "string",
+            "defaultValue": "[resourceGroup().location]",
+            "metadata": {
+                "description": "Location for all resources."
+            }
+        },
+        "sku_tier": {
+            "type": "string",
+            "allowedValues": [
+                "Free",
+                "Basic",
+                "Standard"
+            ],
+            "defaultValue": "Standard",
+            "metadata": {
+                "description": "The pricing tier of the Integration Account"
+            }
+        },
+        "deploy_timestamp": {
+            "type": "string",
+            "minLength": 3,
+            "metadata": {
+                "description": "Time of deployment"
+            }
+        }
+    },
+    "variables": {},
+    "resources": [
+        {
+            "type": "Microsoft.Logic/integrationAccounts",
+            "sku": {
+                "name": "[parameters('sku_tier')]"
+            },
+            "name": "[parameters('name')]",
+            "apiVersion": "2016-06-01",
+            "location": "[parameters('location')]",
+            "tags": {
+                "deploy_timestamp": "[parameters('deploy_timestamp')]"
+            },
+            "scale": null,
+            "properties": {
+                "state": "Enabled"
+            },
+            "dependsOn": []
+        }
+    ],
+    "outputs": {
+        "integration_account": {
+            "type": "string",
+            "value": "[resourceId('Microsoft.Logic/integrationAccounts', parameters('name'))]"
+        }
+    }
+}

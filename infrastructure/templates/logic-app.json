@@ -1,0 +1,181 @@
+{
+    "$schema": "https://schema.management.azure.com/schemas/2015-01-01/deploymentTemplate.json#",
+    "contentVersion": "1.0.0.0",
+    "parameters": {
+        "name": {
+            "type": "string"
+        },
+        "logicAppLocation": {
+            "type": "string",
+            "defaultValue": "northeurope",
+            "allowedValues": [
+                "eastasia",
+                "southeastasia",
+                "centralus",
+                "eastus",
+                "eastus2",
+                "westus",
+                "northcentralus",
+                "southcentralus",
+                "northeurope",
+                "westeurope",
+                "japanwest",
+                "japaneast",
+                "brazilsouth",
+                "australiaeast",
+                "australiasoutheast",
+                "southindia",
+                "centralindia",
+                "westindia",
+                "canadacentral",
+                "canadaeast",
+                "westcentralus",
+                "westus2",
+                "[resourceGroup().location]"
+            ],
+            "metadata": {
+                "description": "Location of the Logic App."
+            }
+        },
+        "bitbucket": {
+            "type": "string",
+            "defaultValue": "bitbucket"
+        },
+        "office365": {
+            "type": "string",
+            "defaultValue": "office365"
+        },
+        "deploy_timestamp": {
+            "type": "string"
+        },
+        "integration_account": {
+            "type": "string"
+        }
+    },
+    "variables": {},
+    "resources": [
+        {
+            "type": "Microsoft.Logic/workflows",
+            "apiVersion": "2016-06-01",
+            "tags": {
+                "deploy_timestamp": "[parameters('deploy_timestamp')]"
+            },
+            "name": "[parameters('name')]",
+            "dependsOn": [
+                "[resourceId('Microsoft.Web/connections', parameters('bitbucket'))]",
+                "[resourceId('Microsoft.Web/connections', parameters('office365'))]"
+            ],
+            "location": "[parameters('logicAppLocation')]",
+            "properties": {
+                "integrationAccount": {
+                    "id": "[parameters('integration_account')]"
+                },
+                "definition": {
+                    "$schema": "https://schema.management.azure.com/providers/Microsoft.Logic/schemas/2016-06-01/workflowdefinition.json#",
+                    "contentVersion": "1.0.0.0",
+                    "parameters": {
+                        "$connections": {
+                            "defaultValue": {},
+                            "type": "Object"
+                        }
+                    },
+                    "triggers": {
+                        "When_a_pull_request_is_created": {
+                            "type": "ApiConnectionWebhook",
+                            "inputs": {
+                                "body": {
+                                    "url": "@{listCallbackUrl()}"
+                                },
+                                "host": {
+                                    "connection": {
+                                        "name": "@parameters('$connections')['bitbucket']['connectionId']"
+                                    }
+                                },
+                                "path": "/pullrequest_created_webhook/2.0/repositories/@{encodeURIComponent('chaudaw1')}/@{encodeURIComponent('logic-app-demo')}/hooks"
+                            }
+                        }
+                    },
+                    "actions": {
+                        "Send_an_email": {
+                            "runAfter": {
+                                "Transform_JSON_to_TEXT": [
+                                    "Succeeded"
+                                ]
+                            },
+                            "type": "ApiConnection",
+                            "inputs": {
+                                "body": {
+                                    "Body": "@{triggerBody()}",
+                                    "Subject": "test subject",
+                                    "To": "abc@xyz.com"
+                                },
+                                "host": {
+                                    "connection": {
+                                        "name": "@parameters('$connections')['office365']['connectionId']"
+                                    }
+                                },
+                                "method": "post",
+                                "path": "/Mail"
+                            }
+                        },
+                        "Transform_JSON_to_TEXT": {
+                            "inputs": {
+                                "content": "@triggerBody()",
+                                "integrationAccount": {
+                                    "map": {
+                                        "name": "email_body_liquid_map"
+                                    }
+                                }
+                            },
+                            "kind": "JsonToText",
+                            "runAfter": {},
+                            "type": "Liquid"
+                        }
+                    },
+                    "outputs": {}
+                },
+                "parameters": {
+                    "$connections": {
+                        "value": {
+                            "bitbucket": {
+                                "id": "[concat(subscription().id,'/providers/Microsoft.Web/locations/', parameters('logicAppLocation'), '/managedApis/bitbucket')]",
+                                "connectionId": "[resourceId('Microsoft.Web/connections', parameters('bitbucket'))]"
+                            },
+                            "office365": {
+                                "id": "[concat(subscription().id,'/providers/Microsoft.Web/locations/', parameters('logicAppLocation'), '/managedApis/office365')]",
+                                "connectionId": "[resourceId('Microsoft.Web/connections', parameters('office365'))]"
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        {
+            "type": "Microsoft.Web/connections",
+            "apiVersion": "2016-06-01",
+            "location": "[parameters('logicAppLocation')]",
+            "name": "[parameters('office365')]",
+            "properties": {
+                "api": {
+                    "id": "[concat(subscription().id,'/providers/Microsoft.Web/locations/', parameters('logicAppLocation'), '/managedApis/office365')]"
+                },
+                "displayName": "office365",
+                "parameterValues": {}
+            }
+        },
+        {
+            "type": "Microsoft.Web/connections",
+            "apiVersion": "2016-06-01",
+            "location": "[parameters('logicAppLocation')]",
+            "name": "[parameters('bitbucket')]",
+            "properties": {
+                "api": {
+                    "id": "[concat(subscription().id,'/providers/Microsoft.Web/locations/', parameters('logicAppLocation'), '/managedApis/bitbucket')]"
+                },
+                "displayName": "bitbucket",
+                "parameterValues": {}
+            }
+        }
+    ],
+    "outputs": {}
+}
